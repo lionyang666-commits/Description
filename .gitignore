@@ -1,0 +1,25 @@
+# 敏感文件（token/密钥）
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 运行中数据（笔记/项目等用户数据不提交）
+data/
+
+# WorkBuddy
+.workbuddy/

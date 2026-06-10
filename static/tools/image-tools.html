@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片工具箱 - 免费离线图片处理</title>
+<script src="/static/tools/lib/jszip.min.js"></script>
+<style>
+:root {
+  --bg: #f5f6fa;
+  --card: #fff;
+  --primary: #4f6ef7;
+  --primary-hover: #3b5de7;
+  --text: #1a1a2e;
+  --text2: #666;
+  --border: #e8e8ef;
+  --danger: #e74c3c;
+  --success: #27ae60;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+.header { background:var(--card); border-bottom:1px solid var(--border); padding:0 24px; display:flex; align-items:center; height:60px; gap:16px; }
+.header .logo { font-size:20px; font-weight:700; color:var(--primary); }
+.header .sub { font-size:13px; color:var(--text2); }
+.container { max-width:1100px; margin:24px auto; padding:0 20px; }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:24px; }
+.tab { padding:10px 18px; border-radius:8px; border:1px solid var(--border); background:var(--card); cursor:pointer; font-size:14px; transition:all .2s; white-space:nowrap; }
+.tab:hover { border-color:var(--primary); color:var(--primary); }
+.tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.panel { display:none; }
+.panel.active { display:block; }
+.card { background:var(--card); border-radius:var(--radius); padding:28px; box-shadow:var(--shadow); }
+.card h2 { font-size:20px; margin-bottom:8px; }
+.card .desc { color:var(--text2); font-size:14px; margin-bottom:20px; }
+.dropzone { border:2px dashed var(--border); border-radius:var(--radius); padding:48px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:20px; }
+.dropzone:hover, .dropzone.drag { border-color:var(--primary); background:#f0f3ff; }
+.dropzone .icon { font-size:40px; margin-bottom:12px; }
+.dropzone .label { font-size:15px; color:var(--text2); }
+.dropzone .hint { font-size:12px; color:#aaa; margin-top:6px; }
+.file-list { list-style:none; }
+.file-item { display:flex; align-items:center; padding:10px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; gap:10px; background:var(--bg); }
+.file-item .thumb { width:40px; height:40px; border-radius:6px; object-fit:cover; flex-shrink:0; border:1px solid var(--border); }
+.file-item .thumb-placeholder { width:40px; height:40px; border-radius:6px; flex-shrink:0; border:1px solid var(--border); background:#eee; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.file-item .info { flex:1; min-width:0; }
+.file-item .name { font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-item .meta { font-size:12px; color:var(--text2); margin-top:2px; }
+.file-item .status { font-size:12px; white-space:nowrap; }
+.file-item .status.done { color:var(--success); }
+.file-item .status.error { color:var(--danger); }
+.file-item .remove { cursor:pointer; color:var(--danger); font-size:18px; width:24px; text-align:center; flex-shrink:0; }
+.btn { padding:10px 24px; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:500; transition:all .2s; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-hover); }
+.btn-primary:disabled { background:#b0b8d0; cursor:not-allowed; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+.row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.input { padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; width:100%; }
+.input:focus { border-color:var(--primary); }
+.input-sm { width:120px; }
+.select { padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; outline:none; background:var(--card); cursor:pointer; }
+.progress { height:6px; background:var(--border); border-radius:3px; overflow:hidden; margin:16px 0; display:none; }
+.progress .bar { height:100%; background:var(--primary); border-radius:3px; transition:width .3s; width:0; }
+.msg { padding:12px 16px; border-radius:8px; font-size:14px; margin-top:16px; display:none; }
+.msg.success { background:#eafaf1; color:var(--success); display:block; }
+.msg.error { background:#fdecea; color:var(--danger); display:block; }
+.msg.info { background:#eaf0fd; color:var(--primary); display:block; }
+.preview-grid { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.preview-item { position:relative; width:120px; }
+.preview-item img { width:120px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--border); display:block; }
+.preview-item .p-name { font-size:11px; color:var(--text2); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.preview-item .p-remove { position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.5); color:#fff; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; }
+.option-group { background:var(--bg); border-radius:8px; padding:16px; margin-bottom:16px; }
+.option-group label { font-size:13px; font-weight:500; color:var(--text2); display:block; margin-bottom:8px; }
+.range-row { display:flex; align-items:center; gap:12px; }
+.range-row input[type=range] { flex:1; accent-color:var(--primary); }
+.range-val { min-width:40px; font-size:14px; font-weight:500; color:var(--primary); }
+.color-swatch { width:36px; height:36px; border-radius:6px; border:1px solid var(--border); cursor:pointer; }
+.radio-group { display:flex; gap:8px; flex-wrap:wrap; }
+.radio-btn { padding:6px 16px; border-radius:6px; border:1px solid var(--border); cursor:pointer; font-size:13px; transition:all .2s; background:var(--card); }
+.radio-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.stat-row { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+.stat { background:var(--bg); border-radius:8px; padding:10px 16px; font-size:13px; }
+.stat strong { display:block; font-size:18px; color:var(--primary); }
+@media (max-width:768px) {
+  .tabs { gap:4px; }
+  .tab { padding:8px 12px; font-size:13px; }
+  .card { padding:20px; }
+  .row { flex-direction:column; align-items:stretch; }
+  .preview-item { width:90px; }
+  .preview-item img { width:90px; height:68px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">🖼️ 图片工具箱</span>
+  <span class="sub">纯本地处理 · 无需上传 · 完全免费</span>
+</div>
+
+<div class="container">
+  <div class="tabs" id="tabBar"></div>
+
+  <!-- 批量压缩 -->
+  <div class="panel" data-tab="compress">
+    <div class="card">
+      <h2>批量压缩</h2>
+      <p class="desc">压缩图片体积，可设置质量和最大尺寸，保持原始比例。</p>
+      <div class="dropzone" id="compDrop">
+        <div class="icon">🗜️</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+        <div class="hint">支持 JPG / PNG / WebP / GIF，可同时选择多张</div>
+      </div>
+      <input type="file" id="compInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:24px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">输出质量</label>
+            <div class="range-row">
+              <input type="range" id="compQuality" min="10" max="100" value="80" oninput="document.getElementById('compQualityVal').textContent=this.value+'%'">
+              <span class="range-val" id="compQualityVal">80%</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">最大边长限制（像素，0=不限）</label>
+            <input class="input" id="compMaxSize" type="number" value="0" placeholder="例如 1920，0 表示不限制">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">输出格式</label>
+            <select class="select" id="compFormat">
+              <option value="same">保持原格式</option>
+              <option value="image/jpeg">统一转 JPG</option>
+              <option value="image/png">统一转 PNG</option>
+              <option value="image/webp">统一转 WebP</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <ul class="file-list" id="compList"></ul>
+      <div id="compStats" class="stat-row" style="display:none">
+        <div class="stat">已添加 <strong id="compCount">0</strong> 张</div>
+        <div class="stat">原始大小 <strong id="compOrigSize">0 KB</strong></div>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn btn-outline" onclick="clearComp()">清空</button>
+        <button class="btn btn-primary" id="btnComp" disabled onclick="doCompress()">开始压缩 & 下载 ZIP</button>
+      </div>
+      <div class="progress" id="compProgress"><div class="bar"></div></div>
+      <div class="msg" id="compMsg"></div>
+    </div>
+  </div>
+
+  <!-- 批量重命名 -->
+  <div class="panel" data-tab="rename">
+    <div class="card">
+      <h2>批量重命名</h2>
+      <p class="desc">按规则批量重命名图片文件，支持序号、日期、自定义前后缀。</p>
+      <div class="dropzone" id="renameDrop">
+        <div class="icon">✏️</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+        <div class="hint">支持所有常见图片格式</div>
+      </div>
+      <input type="file" id="renameInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">前缀</label>
+            <input class="input" id="renamePrefix" placeholder="例如 photo_" oninput="updateRenamePreview()">
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">后缀（扩展名前）</label>
+            <input class="input" id="renameSuffix" placeholder="例如 _2024" oninput="updateRenamePreview()">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">序号起始</label>
+            <input class="input input-sm" id="renameStart" type="number" value="1" min="0" oninput="updateRenamePreview()">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">序号位数</label>
+            <select class="select" id="renameDigits" onchange="updateRenamePreview()">
+              <option value="1">1位 (1,2…)</option>
+              <option value="2">2位 (01,02…)</option>
+              <option value="3" selected>3位 (001,002…)</option>
+              <option value="4">4位 (0001…)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:16px">
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">命名模式</label>
+            <select class="select" id="renameMode" onchange="updateRenamePreview()" style="width:100%">
+              <option value="num">纯序号（前缀+序号+后缀）</option>
+              <option value="date">日期+序号（YYYYMMDD_序号）</option>
+              <option value="keep">保留原名+序号</option>
+              <option value="custom">自定义基础名</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:200px" id="customNameRow" style="display:none">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">自定义基础名</label>
+            <input class="input" id="renameCustomBase" placeholder="例如 vacation" oninput="updateRenamePreview()">
+          </div>
+        </div>
+      </div>
+      <div id="renamePreviewWrap" style="display:none;margin-bottom:12px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:6px">预览（前3个）：</div>
+        <div id="renamePreview" style="font-size:13px;color:var(--primary);font-family:monospace;background:var(--bg);padding:8px 12px;border-radius:6px;line-height:1.8"></div>
+      </div>
+      <ul class="file-list" id="renameList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearRename()">清空</button>
+        <button class="btn btn-primary" id="btnRename" disabled onclick="doRename()">重命名并下载 ZIP</button>
+      </div>
+      <div class="progress" id="renameProgress"><div class="bar"></div></div>
+      <div class="msg" id="renameMsg"></div>
+    </div>
+  </div>
+
+  <!-- 格式转换 -->
+  <div class="panel" data-tab="convert">
+    <div class="card">
+      <h2>格式转换</h2>
+      <p class="desc">批量将图片转换为 JPG / PNG / WebP 格式，可调节质量。</p>
+      <div class="dropzone" id="convDrop">
+        <div class="icon">🔄</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+        <div class="hint">支持 JPG / PNG / WebP / BMP / GIF 等</div>
+      </div>
+      <input type="file" id="convInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:24px;flex-wrap:wrap">
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">目标格式</label>
+            <div class="radio-group" id="convFmtGroup">
+              <div class="radio-btn active" data-val="image/jpeg" onclick="setConvFmt(this)">JPG</div>
+              <div class="radio-btn" data-val="image/png" onclick="setConvFmt(this)">PNG</div>
+              <div class="radio-btn" data-val="image/webp" onclick="setConvFmt(this)">WebP</div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">质量（JPG/WebP 有效）</label>
+            <div class="range-row">
+              <input type="range" id="convQuality" min="10" max="100" value="90" oninput="document.getElementById('convQualityVal').textContent=this.value+'%'">
+              <span class="range-val" id="convQualityVal">90%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="file-list" id="convList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearConv()">清空</button>
+        <button class="btn btn-primary" id="btnConv" disabled onclick="doConvert()">开始转换 & 下载 ZIP</button>
+      </div>
+      <div class="progress" id="convProgress"><div class="bar"></div></div>
+      <div class="msg" id="convMsg"></div>
+    </div>
+  </div>
+
+  <!-- 调整尺寸 -->
+  <div class="panel" data-tab="resize">
+    <div class="card">
+      <h2>调整尺寸</h2>
+      <p class="desc">批量缩放图片到指定尺寸，支持等比缩放和固定宽高。</p>
+      <div class="dropzone" id="resizeDrop">
+        <div class="icon">📐</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+      </div>
+      <input type="file" id="resizeInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:12px">
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">缩放模式</label>
+            <div class="radio-group" id="resizeModeGroup">
+              <div class="radio-btn active" data-val="fit" onclick="setResizeMode(this)">等比缩放（长边）</div>
+              <div class="radio-btn" data-val="width" onclick="setResizeMode(this)">固定宽度</div>
+              <div class="radio-btn" data-val="height" onclick="setResizeMode(this)">固定高度</div>
+              <div class="radio-btn" data-val="exact" onclick="setResizeMode(this)">强制宽×高</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="gap:16px;flex-wrap:wrap">
+          <div id="resizeWidthWrap">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">宽度（px）</label>
+            <input class="input input-sm" id="resizeWidth" type="number" value="1200" placeholder="宽">
+          </div>
+          <div id="resizeHeightWrap" style="display:none">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">高度（px）</label>
+            <input class="input input-sm" id="resizeHeight" type="number" value="800" placeholder="高">
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">输出质量</label>
+            <div class="range-row">
+              <input type="range" id="resizeQuality" min="10" max="100" value="85" oninput="document.getElementById('resizeQualityVal').textContent=this.value+'%'">
+              <span class="range-val" id="resizeQualityVal">85%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="file-list" id="resizeList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearResize()">清空</button>
+        <button class="btn btn-primary" id="btnResize" disabled onclick="doResize()">调整并下载 ZIP</button>
+      </div>
+      <div class="progress" id="resizeProgress"><div class="bar"></div></div>
+      <div class="msg" id="resizeMsg"></div>
+    </div>
+  </div>
+
+  <!-- 添加水印 -->
+  <div class="panel" data-tab="watermark">
+    <div class="card">
+      <h2>添加文字水印</h2>
+      <p class="desc">给批量图片添加自定义文字水印，可调节位置、颜色、透明度。</p>
+      <div class="dropzone" id="wmDrop">
+        <div class="icon">💧</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+      </div>
+      <input type="file" id="wmInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:16px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="flex:2;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">水印文字</label>
+            <input class="input" id="wmText" placeholder="输入水印文字，如：© 版权所有" value="© 版权所有">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">字号</label>
+            <input class="input input-sm" id="wmSize" type="number" value="36" min="10" max="200">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">颜色</label>
+            <input type="color" class="color-swatch" id="wmColor" value="#ffffff">
+          </div>
+        </div>
+        <div class="row" style="gap:24px;flex-wrap:wrap;margin-bottom:12px">
+          <div style="flex:1;min-width:200px">
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">透明度</label>
+            <div class="range-row">
+              <input type="range" id="wmOpacity" min="5" max="100" value="60" oninput="document.getElementById('wmOpacityVal').textContent=this.value+'%'">
+              <span class="range-val" id="wmOpacityVal">60%</span>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">位置</label>
+            <div class="radio-group" id="wmPosGroup">
+              <div class="radio-btn" data-val="tl" onclick="setWmPos(this)">左上</div>
+              <div class="radio-btn" data-val="tr" onclick="setWmPos(this)">右上</div>
+              <div class="radio-btn" data-val="center" onclick="setWmPos(this)">居中</div>
+              <div class="radio-btn active" data-val="br" onclick="setWmPos(this)">右下</div>
+              <div class="radio-btn" data-val="bl" onclick="setWmPos(this)">左下</div>
+              <div class="radio-btn" data-val="tile" onclick="setWmPos(this)">平铺</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="file-list" id="wmList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearWm()">清空</button>
+        <button class="btn btn-primary" id="btnWm" disabled onclick="doWatermark()">添加水印 & 下载 ZIP</button>
+      </div>
+      <div class="progress" id="wmProgress"><div class="bar"></div></div>
+      <div class="msg" id="wmMsg"></div>
+    </div>
+  </div>
+
+  <!-- 裁剪/旋转 -->
+  <div class="panel" data-tab="rotate">
+    <div class="card">
+      <h2>批量旋转 / 翻转</h2>
+      <p class="desc">批量旋转图片方向，或进行水平/垂直翻转。</p>
+      <div class="dropzone" id="rotDrop">
+        <div class="icon">🔄</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+      </div>
+      <input type="file" id="rotInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:16px;flex-wrap:wrap">
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">旋转角度</label>
+            <div class="radio-group" id="rotAngleGroup">
+              <div class="radio-btn active" data-val="90" onclick="setRotAngle(this)">顺时针 90°</div>
+              <div class="radio-btn" data-val="180" onclick="setRotAngle(this)">180°</div>
+              <div class="radio-btn" data-val="270" onclick="setRotAngle(this)">逆时针 90°</div>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">翻转（可叠加）</label>
+            <div class="radio-group">
+              <div class="radio-btn" id="flipH" onclick="toggleFlip('H')">水平翻转</div>
+              <div class="radio-btn" id="flipV" onclick="toggleFlip('V')">垂直翻转</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="file-list" id="rotList"></ul>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearRot()">清空</button>
+        <button class="btn btn-primary" id="btnRot" disabled onclick="doRotate()">处理并下载 ZIP</button>
+      </div>
+      <div class="progress" id="rotProgress"><div class="bar"></div></div>
+      <div class="msg" id="rotMsg"></div>
+    </div>
+  </div>
+
+  <!-- 拼图 -->
+  <div class="panel" data-tab="collage">
+    <div class="card">
+      <h2>拼图合并</h2>
+      <p class="desc">将多张图片拼合为一张，支持横排、竖排、网格布局。</p>
+      <div class="dropzone" id="collageDrop">
+        <div class="icon">🖼️</div>
+        <div class="label">拖拽图片到这里，或点击选择</div>
+        <div class="hint">建议选择尺寸相近的图片，效果更佳</div>
+      </div>
+      <input type="file" id="collageInput" multiple accept="image/*" style="display:none">
+      <div class="option-group">
+        <div class="row" style="gap:16px;flex-wrap:wrap">
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">布局</label>
+            <div class="radio-group" id="collageModeGroup">
+              <div class="radio-btn active" data-val="horizontal" onclick="setCollageMode(this)">横排</div>
+              <div class="radio-btn" data-val="vertical" onclick="setCollageMode(this)">竖排</div>
+              <div class="radio-btn" data-val="grid" onclick="setCollageMode(this)">网格</div>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">间距（px）</label>
+            <input class="input input-sm" id="collageGap" type="number" value="4" min="0" max="40">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">背景颜色</label>
+            <input type="color" class="color-swatch" id="collageBg" value="#ffffff">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;color:var(--text2);display:block;margin-bottom:6px">每行列数（网格）</label>
+            <input class="input input-sm" id="collageCols" type="number" value="3" min="1" max="10">
+          </div>
+        </div>
+      </div>
+      <div id="collagePreviewWrap" style="display:none;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px">文件列表（拖拽可调整顺序）：</div>
+        <ul class="file-list" id="collageList"></ul>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:16px">
+        <button class="btn btn-outline" onclick="clearCollage()">清空</button>
+        <button class="btn btn-primary" id="btnCollage" disabled onclick="doCollage()">生成拼图</button>
+      </div>
+      <div class="progress" id="collageProgress"><div class="bar"></div></div>
+      <div class="msg" id="collageMsg"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const TABS = [
+  { id:'compress',  label:'批量压缩',  icon:'🗜️' },
+  { id:'rename',    label:'批量重命名', icon:'✏️' },
+  { id:'convert',   label:'格式转换',  icon:'🔄' },
+  { id:'resize',    label:'调整尺寸',  icon:'📐' },
+  { id:'watermark', label:'添加水印',  icon:'💧' },
+  { id:'rotate',    label:'旋转/翻转', icon:'↩️' },
+  { id:'collage',   label:'拼图合并',  icon:'🖼️' },
+];
+
+const tabBar = document.getElementById('tabBar');
+TABS.forEach(t => {
+  const el = document.createElement('div');
+  el.className = 'tab';
+  el.textContent = t.icon + ' ' + t.label;
+  el.onclick = () => switchTab(t.id);
+  tabBar.appendChild(el);
+});
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', TABS[i].id===id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.tab===id));
+}
+switchTab('compress');
+
+// ===== Utils =====
+function msg(prefix, text, cls='info') {
+  const el = document.getElementById(prefix+'Msg');
+  el.textContent = text;
+  el.className = 'msg ' + cls;
+  if(cls !== 'info') setTimeout(() => { el.className='msg'; el.textContent=''; }, 6000);
+}
+function progress(prefix, pct) {
+  const el = document.getElementById(prefix+'Progress');
+  el.style.display = pct >= 0 ? 'block' : 'none';
+  if(pct >= 0) el.querySelector('.bar').style.width = pct + '%';
+}
+function fmtSize(bytes) {
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+function dropSetup(dropId, inputId, handler) {
+  const dz = document.getElementById(dropId);
+  const inp = document.getElementById(inputId);
+  dz.onclick = () => inp.click();
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag'); };
+  dz.ondragleave = () => dz.classList.remove('drag');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag'); handler(e.dataTransfer.files); };
+  inp.onchange = () => { handler(inp.files); inp.value=''; };
+}
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+function canvasToBlob(canvas, mimeType, quality) {
+  return new Promise(r => canvas.toBlob(r, mimeType, quality/100));
+}
+function extFromMime(mime) {
+  return { 'image/jpeg':'.jpg', 'image/png':'.png', 'image/webp':'.webp' }[mime] || '.jpg';
+}
+function origExt(file) {
+  const m = file.name.match(/\.[^.]+$/);
+  return m ? m[0] : '';
+}
+async function downloadZip(prefix, items) {
+  const zip = new JSZip();
+  items.forEach(({name, blob}) => zip.file(name, blob));
+  const content = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = prefix + '_' + Date.now() + '.zip';
+  a.click();
+}
+function renderFileList(listId, files, removeFunc) {
+  const list = document.getElementById(listId);
+  list.innerHTML = '';
+  files.forEach((f, i) => {
+    const li = document.createElement('li');
+    li.className = 'file-item';
+    const thumb = document.createElement('img');
+    thumb.className = 'thumb';
+    thumb.src = URL.createObjectURL(f);
+    li.appendChild(thumb);
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.innerHTML = `<div class="name">${f.name}</div><div class="meta">${fmtSize(f.size)}</div>`;
+    li.appendChild(info);
+    const rm = document.createElement('span');
+    rm.className = 'remove';
+    rm.textContent = '×';
+    rm.onclick = () => removeFunc(i);
+    li.appendChild(rm);
+    list.appendChild(li);
+  });
+}
+
+// ===== 批量压缩 =====
+let compFiles = [];
+dropSetup('compDrop', 'compInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) compFiles.push(f);
+  renderFileList('compList', compFiles, i => { compFiles.splice(i,1); renderFileList('compList', compFiles, arguments.callee); updateCompStats(); document.getElementById('btnComp').disabled = compFiles.length===0; });
+  updateCompStats();
+  document.getElementById('btnComp').disabled = compFiles.length === 0;
+});
+
+function updateCompStats() {
+  const stats = document.getElementById('compStats');
+  if(compFiles.length === 0) { stats.style.display = 'none'; return; }
+  stats.style.display = 'flex';
+  document.getElementById('compCount').textContent = compFiles.length;
+  const total = compFiles.reduce((s,f) => s+f.size, 0);
+  document.getElementById('compOrigSize').textContent = fmtSize(total);
+}
+function clearComp() {
+  compFiles = [];
+  document.getElementById('compList').innerHTML = '';
+  document.getElementById('btnComp').disabled = true;
+  document.getElementById('compStats').style.display = 'none';
+}
+async function doCompress() {
+  if(!compFiles.length) return;
+  const quality = parseInt(document.getElementById('compQuality').value);
+  const maxSize = parseInt(document.getElementById('compMaxSize').value) || 0;
+  const fmt = document.getElementById('compFormat').value;
+  msg('comp', '处理中，请稍候…', 'info');
+  progress('comp', 5);
+  const results = [];
+  let totalOrig = 0, totalNew = 0;
+  try {
+    for(let i=0; i<compFiles.length; i++) {
+      const f = compFiles[i];
+      totalOrig += f.size;
+      const img = await loadImage(f);
+      let w = img.width, h = img.height;
+      if(maxSize > 0 && Math.max(w,h) > maxSize) {
+        if(w >= h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const outMime = fmt === 'same' ? (f.type || 'image/jpeg') : fmt;
+      const blob = await canvasToBlob(canvas, outMime, quality);
+      totalNew += blob.size;
+      const ext = extFromMime(outMime);
+      const baseName = f.name.replace(/\.[^.]+$/, '');
+      results.push({ name: baseName + ext, blob });
+      progress('comp', 5 + Math.round((i+1)/compFiles.length * 85));
+    }
+    await downloadZip('compressed', results);
+    progress('comp', -1);
+    const saved = Math.round((1 - totalNew/totalOrig) * 100);
+    msg('comp', `✅ 完成！${compFiles.length} 张图片已压缩，体积减少约 ${saved}%（${fmtSize(totalOrig)} → ${fmtSize(totalNew)}）`, 'success');
+  } catch(e) {
+    progress('comp', -1);
+    msg('comp', '压缩失败：' + e.message, 'error');
+  }
+}
+
+// ===== 批量重命名 =====
+let renameFiles = [];
+dropSetup('renameDrop', 'renameInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) renameFiles.push(f);
+  renderFileList('renameList', renameFiles, i => { renameFiles.splice(i,1); renderFileList('renameList',renameFiles,arguments.callee); updateRenamePreview(); document.getElementById('btnRename').disabled=renameFiles.length===0; });
+  updateRenamePreview();
+  document.getElementById('btnRename').disabled = renameFiles.length === 0;
+  document.getElementById('renamePreviewWrap').style.display = renameFiles.length ? 'block' : 'none';
+});
+
+function getRenameMode() { return document.getElementById('renameMode').value; }
+function getNewName(f, i) {
+  const prefix = document.getElementById('renamePrefix').value;
+  const suffix = document.getElementById('renameSuffix').value;
+  const start = parseInt(document.getElementById('renameStart').value) || 0;
+  const digits = parseInt(document.getElementById('renameDigits').value) || 3;
+  const mode = getRenameMode();
+  const ext = origExt(f);
+  const num = String(start + i).padStart(digits, '0');
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  let base = '';
+  if(mode === 'num') base = prefix + num + suffix;
+  else if(mode === 'date') base = today + '_' + num + suffix;
+  else if(mode === 'keep') base = prefix + f.name.replace(/\.[^.]+$/,'') + suffix + '_' + num;
+  else if(mode === 'custom') {
+    const cb = document.getElementById('renameCustomBase').value || 'image';
+    base = prefix + cb + '_' + num + suffix;
+  }
+  return base + ext;
+}
+function updateRenamePreview() {
+  const mode = getRenameMode();
+  document.getElementById('customNameRow').style.display = mode === 'custom' ? '' : 'none';
+  if(!renameFiles.length) return;
+  const preview = renameFiles.slice(0,3).map((f,i) => `${f.name} → ${getNewName(f,i)}`).join('\n');
+  document.getElementById('renamePreview').textContent = preview;
+}
+document.getElementById('renameMode').addEventListener('change', updateRenamePreview);
+function clearRename() {
+  renameFiles = [];
+  document.getElementById('renameList').innerHTML = '';
+  document.getElementById('renamePreviewWrap').style.display = 'none';
+  document.getElementById('btnRename').disabled = true;
+}
+async function doRename() {
+  if(!renameFiles.length) return;
+  msg('rename', '打包中…', 'info');
+  progress('rename', 10);
+  try {
+    const results = renameFiles.map((f,i) => ({ name: getNewName(f,i), blob: f }));
+    await downloadZip('renamed', results);
+    progress('rename', -1);
+    msg('rename', `✅ 完成！${renameFiles.length} 张图片已重命名并打包下载`, 'success');
+  } catch(e) {
+    progress('rename', -1);
+    msg('rename', '失败：' + e.message, 'error');
+  }
+}
+
+// ===== 格式转换 =====
+let convFiles = [];
+let convFmt = 'image/jpeg';
+function setConvFmt(el) {
+  document.querySelectorAll('#convFmtGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  convFmt = el.dataset.val;
+}
+dropSetup('convDrop', 'convInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) convFiles.push(f);
+  renderFileList('convList', convFiles, i => { convFiles.splice(i,1); renderFileList('convList',convFiles,arguments.callee); document.getElementById('btnConv').disabled=convFiles.length===0; });
+  document.getElementById('btnConv').disabled = convFiles.length === 0;
+});
+function clearConv() { convFiles=[]; document.getElementById('convList').innerHTML=''; document.getElementById('btnConv').disabled=true; }
+async function doConvert() {
+  if(!convFiles.length) return;
+  const quality = parseInt(document.getElementById('convQuality').value);
+  msg('conv', '转换中…', 'info');
+  progress('conv', 5);
+  try {
+    const results = [];
+    for(let i=0; i<convFiles.length; i++) {
+      const f = convFiles[i];
+      const img = await loadImage(f);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      const blob = await canvasToBlob(canvas, convFmt, quality);
+      const baseName = f.name.replace(/\.[^.]+$/,'');
+      results.push({ name: baseName + extFromMime(convFmt), blob });
+      progress('conv', 5 + Math.round((i+1)/convFiles.length*85));
+    }
+    await downloadZip('converted', results);
+    progress('conv', -1);
+    msg('conv', `✅ 完成！${convFiles.length} 张图片已转换为 ${convFmt.split('/')[1].toUpperCase()}`, 'success');
+  } catch(e) {
+    progress('conv', -1);
+    msg('conv', '转换失败：'+e.message, 'error');
+  }
+}
+
+// ===== 调整尺寸 =====
+let resizeFiles = [];
+let resizeMode = 'fit';
+function setResizeMode(el) {
+  document.querySelectorAll('#resizeModeGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  resizeMode = el.dataset.val;
+  document.getElementById('resizeWidthWrap').style.display = (resizeMode === 'height') ? 'none' : '';
+  document.getElementById('resizeHeightWrap').style.display = (resizeMode === 'height' || resizeMode === 'exact') ? '' : 'none';
+}
+dropSetup('resizeDrop', 'resizeInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) resizeFiles.push(f);
+  renderFileList('resizeList', resizeFiles, i => { resizeFiles.splice(i,1); renderFileList('resizeList',resizeFiles,arguments.callee); document.getElementById('btnResize').disabled=resizeFiles.length===0; });
+  document.getElementById('btnResize').disabled = resizeFiles.length === 0;
+});
+function clearResize() { resizeFiles=[]; document.getElementById('resizeList').innerHTML=''; document.getElementById('btnResize').disabled=true; }
+async function doResize() {
+  if(!resizeFiles.length) return;
+  const quality = parseInt(document.getElementById('resizeQuality').value);
+  const targetW = parseInt(document.getElementById('resizeWidth').value) || 1200;
+  const targetH = parseInt(document.getElementById('resizeHeight').value) || 800;
+  msg('resize', '处理中…', 'info');
+  progress('resize', 5);
+  try {
+    const results = [];
+    for(let i=0; i<resizeFiles.length; i++) {
+      const f = resizeFiles[i];
+      const img = await loadImage(f);
+      let w = img.width, h = img.height;
+      if(resizeMode === 'fit') {
+        const scale = targetW / Math.max(w, h);
+        w = Math.round(w * scale); h = Math.round(h * scale);
+      } else if(resizeMode === 'width') {
+        h = Math.round(h * targetW / w); w = targetW;
+      } else if(resizeMode === 'height') {
+        w = Math.round(w * targetH / h); h = targetH;
+      } else if(resizeMode === 'exact') {
+        w = targetW; h = targetH;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const outMime = f.type || 'image/jpeg';
+      const blob = await canvasToBlob(canvas, outMime, quality);
+      results.push({ name: f.name, blob });
+      progress('resize', 5 + Math.round((i+1)/resizeFiles.length*85));
+    }
+    await downloadZip('resized', results);
+    progress('resize', -1);
+    msg('resize', `✅ 完成！${resizeFiles.length} 张图片已调整尺寸`, 'success');
+  } catch(e) {
+    progress('resize', -1);
+    msg('resize', '处理失败：'+e.message, 'error');
+  }
+}
+
+// ===== 水印 =====
+let wmFiles = [];
+let wmPos = 'br';
+function setWmPos(el) {
+  document.querySelectorAll('#wmPosGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  wmPos = el.dataset.val;
+}
+dropSetup('wmDrop', 'wmInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) wmFiles.push(f);
+  renderFileList('wmList', wmFiles, i => { wmFiles.splice(i,1); renderFileList('wmList',wmFiles,arguments.callee); document.getElementById('btnWm').disabled=wmFiles.length===0; });
+  document.getElementById('btnWm').disabled = wmFiles.length === 0;
+});
+function clearWm() { wmFiles=[]; document.getElementById('wmList').innerHTML=''; document.getElementById('btnWm').disabled=true; }
+async function doWatermark() {
+  if(!wmFiles.length) return;
+  const text = document.getElementById('wmText').value.trim();
+  if(!text) { msg('wm','请输入水印文字','error'); return; }
+  const fontSize = parseInt(document.getElementById('wmSize').value) || 36;
+  const color = document.getElementById('wmColor').value;
+  const opacity = parseInt(document.getElementById('wmOpacity').value) / 100;
+  msg('wm', '处理中…', 'info');
+  progress('wm', 5);
+  try {
+    const results = [];
+    for(let i=0; i<wmFiles.length; i++) {
+      const f = wmFiles[i];
+      const img = await loadImage(f);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.font = `${fontSize}px -apple-system, 'PingFang SC', sans-serif`;
+      ctx.fillStyle = color;
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 3;
+      const metrics = ctx.measureText(text);
+      const tw = metrics.width, th = fontSize;
+      const pad = 20;
+      let x, y;
+      if(wmPos === 'tl') { x=pad; y=th+pad; }
+      else if(wmPos === 'tr') { x=canvas.width-tw-pad; y=th+pad; }
+      else if(wmPos === 'bl') { x=pad; y=canvas.height-pad; }
+      else if(wmPos === 'br') { x=canvas.width-tw-pad; y=canvas.height-pad; }
+      else if(wmPos === 'center') { x=(canvas.width-tw)/2; y=(canvas.height+th)/2; }
+      else if(wmPos === 'tile') {
+        const stepX = tw + 80, stepY = th + 60;
+        for(let ty=-stepY; ty<canvas.height+stepY; ty+=stepY) {
+          for(let tx=-stepX; tx<canvas.width+stepX; tx+=stepX) {
+            ctx.save();
+            ctx.translate(tx + tw/2, ty + th/2);
+            ctx.rotate(-Math.PI/6);
+            ctx.fillText(text, -tw/2, th/2);
+            ctx.restore();
+          }
+        }
+        ctx.restore();
+        const blob = await canvasToBlob(canvas, f.type||'image/jpeg', 90);
+        results.push({ name: f.name, blob });
+        progress('wm', 5 + Math.round((i+1)/wmFiles.length*85));
+        continue;
+      }
+      ctx.fillText(text, x, y);
+      ctx.restore();
+      const blob = await canvasToBlob(canvas, f.type||'image/jpeg', 90);
+      results.push({ name: f.name, blob });
+      progress('wm', 5 + Math.round((i+1)/wmFiles.length*85));
+    }
+    await downloadZip('watermarked', results);
+    progress('wm', -1);
+    msg('wm', `✅ 完成！${wmFiles.length} 张图片已添加水印`, 'success');
+  } catch(e) {
+    progress('wm', -1);
+    msg('wm', '处理失败：'+e.message, 'error');
+  }
+}
+
+// ===== 旋转/翻转 =====
+let rotFiles = [];
+let rotAngle = 90;
+let flipHoriz = false, flipVert = false;
+function setRotAngle(el) {
+  document.querySelectorAll('#rotAngleGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  rotAngle = parseInt(el.dataset.val);
+}
+function toggleFlip(dir) {
+  if(dir === 'H') { flipHoriz = !flipHoriz; document.getElementById('flipH').classList.toggle('active', flipHoriz); }
+  else { flipVert = !flipVert; document.getElementById('flipV').classList.toggle('active', flipVert); }
+}
+dropSetup('rotDrop', 'rotInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) rotFiles.push(f);
+  renderFileList('rotList', rotFiles, i => { rotFiles.splice(i,1); renderFileList('rotList',rotFiles,arguments.callee); document.getElementById('btnRot').disabled=rotFiles.length===0; });
+  document.getElementById('btnRot').disabled = rotFiles.length === 0;
+});
+function clearRot() { rotFiles=[]; document.getElementById('rotList').innerHTML=''; document.getElementById('btnRot').disabled=true; }
+async function doRotate() {
+  if(!rotFiles.length) return;
+  msg('rot', '处理中…', 'info');
+  progress('rot', 5);
+  try {
+    const results = [];
+    for(let i=0; i<rotFiles.length; i++) {
+      const f = rotFiles[i];
+      const img = await loadImage(f);
+      const rad = rotAngle * Math.PI / 180;
+      const swap = rotAngle === 90 || rotAngle === 270;
+      const canvas = document.createElement('canvas');
+      canvas.width = swap ? img.height : img.width;
+      canvas.height = swap ? img.width : img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width/2, canvas.height/2);
+      ctx.rotate(rad);
+      if(flipHoriz) ctx.scale(-1, 1);
+      if(flipVert) ctx.scale(1, -1);
+      ctx.drawImage(img, -img.width/2, -img.height/2);
+      const blob = await canvasToBlob(canvas, f.type||'image/jpeg', 92);
+      results.push({ name: f.name, blob });
+      progress('rot', 5 + Math.round((i+1)/rotFiles.length*85));
+    }
+    await downloadZip('rotated', results);
+    progress('rot', -1);
+    msg('rot', `✅ 完成！${rotFiles.length} 张图片已处理`, 'success');
+  } catch(e) {
+    progress('rot', -1);
+    msg('rot', '处理失败：'+e.message, 'error');
+  }
+}
+
+// ===== 拼图 =====
+let collageFiles = [];
+let collageMode = 'horizontal';
+function setCollageMode(el) {
+  document.querySelectorAll('#collageModeGroup .radio-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  collageMode = el.dataset.val;
+}
+dropSetup('collageDrop', 'collageInput', files => {
+  for(const f of files) if(f.type.startsWith('image/')) collageFiles.push(f);
+  renderCollageList();
+  document.getElementById('btnCollage').disabled = collageFiles.length < 2;
+  document.getElementById('collagePreviewWrap').style.display = collageFiles.length ? 'block' : 'none';
+});
+function renderCollageList() {
+  renderFileList('collageList', collageFiles, i => {
+    collageFiles.splice(i,1);
+    renderCollageList();
+    document.getElementById('btnCollage').disabled = collageFiles.length < 2;
+    document.getElementById('collagePreviewWrap').style.display = collageFiles.length ? 'block' : 'none';
+  });
+}
+function clearCollage() {
+  collageFiles=[];
+  document.getElementById('collageList').innerHTML='';
+  document.getElementById('btnCollage').disabled=true;
+  document.getElementById('collagePreviewWrap').style.display='none';
+}
+async function doCollage() {
+  if(collageFiles.length < 2) return;
+  const gap = parseInt(document.getElementById('collageGap').value) || 0;
+  const bgColor = document.getElementById('collageBg').value;
+  const cols = Math.max(1, parseInt(document.getElementById('collageCols').value) || 3);
+  msg('collage', '拼图中…', 'info');
+  progress('collage', 10);
+  try {
+    const imgs = [];
+    for(const f of collageFiles) imgs.push(await loadImage(f));
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if(collageMode === 'horizontal') {
+      const h = Math.max(...imgs.map(i=>i.height));
+      const scaledImgs = imgs.map(img => {
+        const s = h / img.height;
+        return { img, w: Math.round(img.width*s), h };
+      });
+      canvas.width = scaledImgs.reduce((s,i)=>s+i.w,0) + gap*(imgs.length-1);
+      canvas.height = h;
+      ctx.fillStyle = bgColor; ctx.fillRect(0,0,canvas.width,canvas.height);
+      let x=0;
+      for(const si of scaledImgs) { ctx.drawImage(si.img,x,0,si.w,si.h); x+=si.w+gap; }
+    } else if(collageMode === 'vertical') {
+      const w = Math.max(...imgs.map(i=>i.width));
+      const scaledImgs = imgs.map(img => {
+        const s = w / img.width;
+        return { img, w, h: Math.round(img.height*s) };
+      });
+      canvas.width = w;
+      canvas.height = scaledImgs.reduce((s,i)=>s+i.h,0) + gap*(imgs.length-1);
+      ctx.fillStyle = bgColor; ctx.fillRect(0,0,canvas.width,canvas.height);
+      let y=0;
+      for(const si of scaledImgs) { ctx.drawImage(si.img,0,y,si.w,si.h); y+=si.h+gap; }
+    } else {
+      const rows = Math.ceil(imgs.length / cols);
+      const cellW = Math.max(...imgs.map(i=>i.width));
+      const cellH = Math.max(...imgs.map(i=>i.height));
+      canvas.width = cols*cellW + (cols-1)*gap;
+      canvas.height = rows*cellH + (rows-1)*gap;
+      ctx.fillStyle = bgColor; ctx.fillRect(0,0,canvas.width,canvas.height);
+      imgs.forEach((img,idx) => {
+        const col = idx % cols, row = Math.floor(idx / cols);
+        const s = Math.min(cellW/img.width, cellH/img.height);
+        const dw = Math.round(img.width*s), dh = Math.round(img.height*s);
+        const dx = col*(cellW+gap) + Math.round((cellW-dw)/2);
+        const dy = row*(cellH+gap) + Math.round((cellH-dh)/2);
+        ctx.drawImage(img, dx, dy, dw, dh);
+      });
+    }
+    progress('collage', 80);
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 92);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'collage_' + Date.now() + '.jpg';
+    a.click();
+    progress('collage', -1);
+    msg('collage', `✅ 拼图完成！${collageFiles.length} 张图片已合并`, 'success');
+  } catch(e) {
+    progress('collage', -1);
+    msg('collage', '拼图失败：'+e.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

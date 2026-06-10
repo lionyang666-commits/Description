@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人工作台</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260611b">
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="navbar">
+    <div class="navbar-inner">
+        <div class="logo">WORKSPACE</div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-section="notes">笔记</button>
+            <button class="nav-tab" data-section="prompts">提示词</button>
+            <button class="nav-tab" data-section="news">热点</button>
+            <button class="nav-tab" data-section="github">GitHub</button>
+            <button class="nav-tab" data-section="projects">项目</button>
+            <button class="nav-tab" data-section="toolbox">工具箱</button>
+            <button class="nav-tab" data-section="ai-news">AI资讯</button>
+        </div>
+    </div>
+</nav>
+
+<div class="main">
+
+    <!-- ========== 笔记模块 ========== -->
+    <div id="notes" class="section active">
+        <div class="note-layout">
+            <div class="card sidebar" style="width:220px;flex-shrink:0">
+                <div class="flex items-center gap-1" style="margin-bottom:1rem">
+                    <button class="btn btn-primary btn-sm" onclick="newNote()">+ 新建</button>
+                    <button class="btn btn-ghost btn-sm" onclick="newCategory('note')">+ 类目</button>
+                </div>
+                <div id="note-categories" class="category-list"></div>
+                <hr class="divider">
+                <div id="note-list" class="note-list"></div>
+            </div>
+            <div class="note-editor card flex-1">
+                <input type="text" class="note-title-input" id="note-title" placeholder="笔记标题...">
+                <div class="editor-row">
+                    <div class="editor-pane">
+                        <label>粗稿</label>
+                        <textarea id="note-draft" placeholder="写下你的想法..."></textarea>
+                    </div>
+                    <div class="editor-pane">
+                        <div class="editor-label">AI整理 <button class="btn btn-primary btn-sm" id="btn-polish" onclick="polishNote()">AI整理</button><button class="btn btn-ghost btn-sm" id="btn-polish-cancel" style="display:none" onclick="cancelPolish()">取消</button></div>
+                        <textarea id="note-polished" placeholder="点击「AI整理」按钮生成结构化笔记..."></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-1" style="justify-content:flex-end;align-items:center">
+                    <select id="note-category-select" class="category-select" style="margin-right:auto"></select>
+                    <button class="btn btn-primary btn-sm btn-save-note" onclick="saveNote()">保存</button>
+                    <button class="btn btn-ghost btn-sm" onclick="deleteNote()">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 提示词优化模块 ========== -->
+    <div id="prompts" class="section">
+        <div class="note-layout">
+            <div class="card sidebar" style="width:220px;flex-shrink:0">
+                <div class="flex items-center gap-1" style="margin-bottom:1rem">
+                    <button class="btn btn-primary btn-sm" onclick="newPrompt()">+ 新建</button>
+                    <button class="btn btn-ghost btn-sm" onclick="newCategory('prompt')">+ 类目</button>
+                </div>
+                <div id="prompt-categories" class="category-list"></div>
+                <hr class="divider">
+                <div id="prompt-list" class="note-list"></div>
+            </div>
+            <div class="card flex-1 prompt-editor">
+                <input type="text" class="note-title-input" id="prompt-title" placeholder="提示词标题...">
+                <div class="editor-row">
+                    <div class="editor-pane">
+                        <label>自然语言描述</label>
+                        <textarea id="prompt-raw" placeholder="用自然语言描述你想要的提示词...&#10;&#10;例如：我想要一个能帮我写小红书文案的助手，语气活泼，带emoji"></textarea>
+                    </div>
+                    <div class="editor-pane">
+                        <div class="editor-label">优化结果 <button class="btn btn-primary btn-sm" id="btn-optimize">AI优化</button><button class="btn btn-ghost btn-sm" id="btn-optimize-cancel" style="display:none">取消</button></div>
+                        <textarea id="prompt-optimized" placeholder="AI优化后的专业提示词..."></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-1" style="justify-content:flex-end;align-items:center">
+                    <select id="prompt-category-select" class="category-select" style="margin-right:auto"></select>
+                    <button class="btn btn-ghost btn-sm btn-save-prompt" onclick="savePrompt()">保存提示词</button>
+                    <button class="btn btn-ghost btn-sm" onclick="deletePrompt()">删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 热点新闻模块 ========== -->
+    <div id="news" class="section">
+        <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+            <div id="source-tabs" class="news-controls" style="flex:1"></div>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-news">刷新</button>
+        </div>
+        <div id="news-grid" class="news-grid"></div>
+    </div>
+
+    <!-- ========== GitHub 模块 ========== -->
+    <div id="github" class="section">
+        <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+            <h2 style="flex:1;font-size:1.1rem">GitHub 热门项目</h2>
+            <span class="text-muted text-sm" id="gh-date-label">最近 7 天</span>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-github" onclick="loadGitHub()">刷新</button>
+        </div>
+        <div id="gh-stats" class="ai-stats-row"></div>
+        <div id="gh-subnav" class="ai-subnav"></div>
+        <div id="github-grid" class="gh-grid"></div>
+    </div>
+
+    <!-- ========== 项目模块 ========== -->
+    <div id="projects" class="section">
+        <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+            <h2 style="flex:1;font-size:1.1rem">我的项目</h2>
+            <button class="btn btn-primary btn-sm" onclick="newProject()">+ 新建项目</button>
+        </div>
+        <div id="project-grid" class="github-grid"></div>
+    </div>
+
+    <!-- ========== 工具箱模块 ========== -->
+    <div id="toolbox" class="section">
+        <!-- 工具列表视图 -->
+        <div id="toolbox-grid-view">
+            <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+                <h2 style="flex:1;font-size:1.1rem">工具箱</h2>
+                <span class="text-muted text-sm">纯本地处理 · 无需上传</span>
+            </div>
+            <div id="toolbox-grid" class="github-grid"></div>
+        </div>
+        <!-- 工具运行视图 -->
+        <div id="toolbox-run-view" style="display:none">
+            <div class="flex items-center gap-2" style="margin-bottom:1rem">
+                <button class="btn btn-ghost btn-sm" onclick="closeTool()">&larr; 返回工具箱</button>
+                <h2 id="toolbox-run-title" style="flex:1;font-size:1.1rem"></h2>
+            </div>
+            <div class="tool-frame-wrap">
+                <iframe id="toolbox-iframe" class="tool-frame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== AI 资讯模块 ========== -->
+    <div id="ai-news" class="section">
+        <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+            <h2 style="flex:1;font-size:1.1rem">AI 资讯 · 今日晨报</h2>
+            <span class="text-muted text-sm" id="ai-date-label"></span>
+            <button class="btn btn-ghost btn-sm" id="btn-refresh-ai" onclick="loadAiNews()">刷新</button>
+        </div>
+        <div id="ai-stats" class="ai-stats-row"></div>
+        <div id="ai-subnav" class="ai-subnav"></div>
+        <div id="ai-content"></div>
+        <div id="ai-footer" class="ai-footer" style="display:none"></div>
+    </div>
+
+</div>
+
+<!-- Toast提示 -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- 项目编辑弹窗 -->
+<div id="project-dialog" class="dialog-mask" style="display:none">
+    <div class="dialog">
+        <h3 id="project-dialog-title" style="margin-bottom:1rem;font-size:1rem">编辑项目</h3>
+        <input type="text" id="project-dialog-name" class="note-title-input" placeholder="项目名称" style="margin-bottom:0.8rem">
+        <input type="text" id="project-dialog-desc" class="note-title-input" placeholder="项目描述" style="font-size:1rem;margin-bottom:0.8rem">
+        <textarea id="project-dialog-plan" style="min-height:100px;margin-bottom:0.8rem" placeholder="后续计划"></textarea>
+        <div class="flex gap-1" style="align-items:center;margin-bottom:1rem">
+            <label style="font-size:0.85rem;color:var(--text-secondary)">状态：</label>
+            <select id="project-dialog-status" class="category-select" style="max-width:none">
+                <option>进行中</option>
+                <option>暂停</option>
+                <option>已完成</option>
+            </select>
+        </div>
+        <div class="flex gap-1" style="justify-content:flex-end">
+            <button class="btn btn-primary btn-sm" id="project-dialog-save">保存</button>
+            <button class="btn btn-ghost btn-sm" id="project-dialog-cancel">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+window.onerror = function(msg, url, line, col, err) {
+    document.title = 'JS ERROR: ' + msg;
+    console.error('[Global Error]', msg, url + ':' + line, err);
+};
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('[Unhandled Rejection]', e.reason);
+});
+</script>
+<script src="/static/js/app.js?v=20260611d"></script>
+</body>
+</html>
